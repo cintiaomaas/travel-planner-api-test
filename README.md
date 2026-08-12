@@ -81,6 +81,22 @@ Se `API_BASE_URL` não estiver definido, os testes usam `http://localhost:3000` 
 
 - O arquivo `.gitignore` já protege `node_modules/`, `playwright-report/` e `.env`.
 - Use `npm test` sempre após instalar dependências ou atualizar a URL de teste.
-- O workflow do GitHub Actions está em `.github/workflows/ci.yml`.
+- O workflow de CI está em `.github/workflows/ci.yml`.
+- O workflow de publicação do relatório está em `.github/workflows/deploy-report.yml`.
+
+## Relatório no GitHub Pages
+
+O workflow `deploy-report.yml` gera o relatório Playwright e publica pelo GitHub Pages, mesmo quando os testes falham.
+Após o deploy, o relatório poderá ser acessado em uma URL semelhante a:
+
+```text
+https://cintiaomaas.github.io/travel-planner-api-test/
+```
+
+## Como usar o deploy do relatório
+
+- O deploy é acionado automaticamente em push para `main` ou `master`.
+- Também pode ser executado manualmente pela aba **Actions** > **Publicar relatório Playwright** > **Run workflow**.
+- O relatório será publicado mesmo que haja falha nos testes, permitindo visualização dos detalhes do erro.
 
 ### Desenvolvido por Cintia
