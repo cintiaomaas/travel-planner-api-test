@@ -18,9 +18,11 @@ jobs:
       - run: npm ci
       - name: Executar testes Playwright
         run: npm test || true
-      - name: Upload Playwright report
-        uses: actions/upload-pages-artifact@v1
+      - name: Publicar relatório no branch gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: playwright-report
-      - name: Deploy para GitHub Pages
-        uses: actions/deploy-pages@v1
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./playwright-report
+          publish_branch: gh-pages
+          user_name: github-actions[bot]
+          user_email: github-actions[bot]@users.noreply.github.com
