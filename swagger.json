@@ -1,0 +1,973 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Viaja Travel Planner API",
+    "version": "1.0.0",
+    "description": "Documentação interativa da API do Viaja, incluindo conversão de moedas e endpoints de autenticação."
+  },
+  "servers": [
+    {
+      "url": "https://meu-travel-planner.vercel.app",
+      "description": "Produção — Vercel"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Desenvolvimento local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Documentação",
+      "description": "Especificação OpenAPI utilizada pelo Swagger UI."
+    },
+    {
+      "name": "Câmbio",
+      "description": "Conversão de valores entre as moedas suportadas."
+    },
+    {
+      "name": "Autenticação",
+      "description": "Endpoints de sessão disponibilizados pelo Auth.js."
+    }
+  ],
+  "paths": {
+    "/api/openapi": {
+      "get": {
+        "tags": [
+          "Documentação"
+        ],
+        "summary": "Obter a especificação OpenAPI",
+        "description": "Retorna o documento OpenAPI 3.1 exibido pelo Swagger UI.",
+        "operationId": "getOpenApiDocument",
+        "responses": {
+          "200": {
+            "description": "Especificação OpenAPI atual da aplicação.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "openapi",
+                    "info",
+                    "paths"
+                  ],
+                  "properties": {
+                    "openapi": {
+                      "type": "string",
+                      "example": "3.1.0"
+                    },
+                    "info": {
+                      "type": "object"
+                    },
+                    "paths": {
+                      "type": "object"
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/currency": {
+      "get": {
+        "tags": [
+          "Câmbio"
+        ],
+        "summary": "Converter um valor entre moedas",
+        "description": "Consulta a cotação na Frankfurter. Se o provedor estiver indisponível, usa `manualRate` quando informado. Conversões entre moedas iguais são calculadas localmente.",
+        "operationId": "convertCurrency",
+        "parameters": [
+          {
+            "name": "amount",
+            "in": "query",
+            "description": "Valor positivo a converter. O padrão é 1.",
+            "schema": {
+              "type": "number",
+              "format": "double",
+              "exclusiveMinimum": 0,
+              "maximum": 1000000000,
+              "default": 1
+            },
+            "example": 100
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "description": "Moeda de origem.",
+            "schema": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "example": "EUR"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Moeda de destino. O padrão é BRL.",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                }
+              ],
+              "default": "BRL"
+            },
+            "example": "BRL"
+          },
+          {
+            "name": "manualRate",
+            "in": "query",
+            "description": "Cotação manual positiva, usada somente se o provedor online falhar.",
+            "schema": {
+              "type": "number",
+              "format": "double",
+              "exclusiveMinimum": 0,
+              "maximum": 1000000
+            },
+            "example": 6.42
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversão realizada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CurrencyConversion"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Parâmetros de consulta inválidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno inesperado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "O provedor de cotações está indisponível e nenhuma cotação manual foi fornecida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/providers": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Listar provedores de autenticação",
+        "operationId": "listAuthProviders",
+        "responses": {
+          "200": {
+            "description": "Provedores configurados no Auth.js.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/AuthProvider"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Solicitar redefinição de senha",
+        "description": "Envia um link de uso único, válido por 30 minutos. A resposta não revela se o e-mail está cadastrado.",
+        "operationId": "requestPasswordReset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "example": "viajante@exemplo.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Solicitação processada sem revelar a existência da conta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "E-mail inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Redefinir a senha",
+        "description": "Recebe o token original presente no link enviado por e-mail e a nova senha. Não envie o `csrfToken` do login nem o `tokenHash` de 64 caracteres armazenado no banco; nenhum deles é um token de redefinição.",
+        "operationId": "resetPassword",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordReset"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Senha redefinida com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Token inválido ou expirado, ou senha inválida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/register": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Criar uma conta de usuário",
+        "operationId": "registerUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegistration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Conta criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RegisteredUser"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados de cadastro inválidos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "E-mail já cadastrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Cadastro temporariamente indisponível.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/csrf": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Obter token CSRF",
+        "description": "Retorna o token de proteção usado pelo Auth.js em login, logout e atualização de sessão. Este token não redefine senha e não deve ser enviado para `/api/auth/reset-password`.",
+        "operationId": "getCsrfToken",
+        "responses": {
+          "200": {
+            "description": "Token necessário para operações de login e logout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "csrfToken"
+                  ],
+                  "properties": {
+                    "csrfToken": {
+                      "type": "string",
+                      "description": "Token CSRF da sessão do navegador; não é um token de redefinição de senha."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Consultar a sessão atual",
+        "operationId": "getSession",
+        "security": [
+          {},
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sessão atual ou `null` quando o usuário não está autenticado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Session"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Atualizar a sessão atual",
+        "description": "Operação disponibilizada pelo Auth.js para atualizar dados da sessão. Requer o token retornado por `GET /api/auth/csrf`.",
+        "operationId": "updateSession",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sessão atualizada ou `null` se não houver sessão ativa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Session"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/callback/credentials": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Entrar com e-mail e senha",
+        "description": "Recebe as credenciais após a consulta `GET /api/auth/csrf`. O cliente da aplicação envia `X-Auth-Return-Redirect: 1` e recebe uma resposta JSON com a URL de destino.",
+        "operationId": "signInWithCredentials",
+        "parameters": [
+          {
+            "name": "X-Auth-Return-Redirect",
+            "in": "header",
+            "description": "Solicita que o Auth.js devolva a URL em JSON, sem redirecionar imediatamente.",
+            "schema": {
+              "type": "string",
+              "const": "1",
+              "default": "1"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialsCallback"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login processado. Falhas de credenciais são informadas nos parâmetros da URL retornada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthRedirectResponse"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Redirecionamento usado quando o cabeçalho `X-Auth-Return-Redirect` não é enviado."
+          }
+        }
+      }
+    },
+    "/api/auth/signout": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Encerrar a sessão",
+        "operationId": "signOut",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Auth-Return-Redirect",
+            "in": "header",
+            "description": "Solicita que o Auth.js devolva a URL em JSON, sem redirecionar imediatamente.",
+            "schema": {
+              "type": "string",
+              "const": "1",
+              "default": "1"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "csrfToken"
+                ],
+                "properties": {
+                  "csrfToken": {
+                    "type": "string"
+                  },
+                  "callbackUrl": {
+                    "type": "string",
+                    "format": "uri-reference",
+                    "default": "/"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sessão encerrada e URL de retorno informada em JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthRedirectResponse"
+                }
+              }
+            }
+          },
+          "302": {
+            "description": "Redirecionamento usado quando o cabeçalho `X-Auth-Return-Redirect` não é enviado."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "authjs.session-token",
+        "description": "Cookie de sessão gerenciado pelo Auth.js. Em HTTPS, o nome pode receber o prefixo `__Secure-`."
+      }
+    },
+    "schemas": {
+      "Currency": {
+        "type": "string",
+        "enum": [
+          "BRL",
+          "USD",
+          "EUR",
+          "ARS",
+          "GBP",
+          "CLP",
+          "JPY",
+          "CAD",
+          "AUD",
+          "CHF",
+          "MXN",
+          "UYU"
+        ]
+      },
+      "CurrencyConversion": {
+        "type": "object",
+        "required": [
+          "amount",
+          "from",
+          "to",
+          "rate",
+          "convertedAmount",
+          "quotationDate",
+          "source"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "double",
+            "example": 100
+          },
+          "from": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "to": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "rate": {
+            "type": "number",
+            "format": "double",
+            "example": 6.42
+          },
+          "convertedAmount": {
+            "type": "number",
+            "format": "double",
+            "example": 642
+          },
+          "quotationDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-13"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "frankfurter",
+              "manual-fallback",
+              "identity"
+            ]
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "INTERNAL_ERROR"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Error"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "fields": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "ServiceErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Error"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "manualRateAccepted": {
+                    "type": "boolean",
+                    "const": true
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "AuthProvider": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "signinUrl",
+          "callbackUrl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "credentials"
+          },
+          "name": {
+            "type": "string",
+            "example": "E-mail e senha"
+          },
+          "type": {
+            "type": "string",
+            "example": "credentials"
+          },
+          "signinUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "callbackUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "required": [
+          "user",
+          "expires"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "email": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "email"
+              },
+              "image": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri"
+              }
+            }
+          },
+          "expires": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": [
+              "message"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "SessionUpdate": {
+        "type": "object",
+        "required": [
+          "csrfToken",
+          "data"
+        ],
+        "properties": {
+          "csrfToken": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "description": "Dados encaminhados ao callback JWT do Auth.js.",
+            "additionalProperties": true
+          }
+        }
+      },
+      "CredentialsCallback": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "csrfToken"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "csrfToken": {
+            "type": "string"
+          },
+          "callbackUrl": {
+            "type": "string",
+            "format": "uri-reference",
+            "default": "/"
+          }
+        }
+      },
+      "AuthRedirectResponse": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri-reference",
+            "description": "URL de destino. Em uma falha de autenticação, pode conter os parâmetros `error` e `code`.",
+            "example": "/"
+          }
+        }
+      },
+      "UserRegistration": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        }
+      },
+      "RegisteredUser": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "PasswordReset": {
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43,
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "description": "Token original recebido no parâmetro `token` do link enviado por e-mail. Não é o `csrfToken` do login nem o `tokenHash` salvo no banco.",
+            "example": "kT2xY8nQ4pL7vR1mC6sW9aB3dF5hJ0uE2iO8gZ1cVqM"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 128,
+            "description": "Nova senha que substituirá a senha atual.",
+            "example": "NovaSenha123!"
+          }
+        }
+      }
+    }
+  }
+}
