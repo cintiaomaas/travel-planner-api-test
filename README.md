@@ -81,5 +81,6 @@ Se `API_BASE_URL` não estiver definido, os testes usam `http://localhost:3000` 
 
 - O arquivo `.gitignore` já protege `node_modules/`, `playwright-report/` e `.env`.
 - Use `npm test` sempre após instalar dependências ou atualizar a URL de teste.
+- O workflow do GitHub Actions está em `.github/workflows/ci.yml`.
 
 ### Desenvolvido por Cintia
