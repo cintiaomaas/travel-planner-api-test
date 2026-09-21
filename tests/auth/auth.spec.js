@@ -18,6 +18,7 @@ test.describe('Autenticação', () => {
     });
     expect(response.status()).toBe(200);
     const body = await response.json();
-    expect(body.message).toBeTruthy();
+    expect(body.data.message).toEqual(expect.any(String));
+    expect(body.data.message.length).toBeGreaterThan(0);
   });
 });

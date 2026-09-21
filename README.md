@@ -15,12 +15,19 @@ travel-planner-api-test/
 └─ tests/
    ├─ auth/
    │  └─ auth.spec.js
+   |  └─ flows.spec.js
    ├─ currency/
    │  └─ currency.spec.js
+   |  └─ validation.spec.js
+   ├─ helpers
+   |  └─ api.js
    ├─ openapi/
    │  └─ openapi.spec.js
+   ├─ planner
+   |  └─ planner.spec.js
    └─ register/
       └─ register.spec.js
+      └─ validation.spec.js
 ```
 
 ## Pré-requisitos
@@ -74,8 +81,19 @@ Se `API_BASE_URL` não estiver definido, os testes usam `http://localhost:3000` 
 
 - `tests/openapi/openapi.spec.js` - valida a especificação OpenAPI da API.
 - `tests/currency/currency.spec.js` - testa a conversão de moedas.
+- `tests/currency/validation.spec.js` - valida conversões entre moedas iguais, valores padrão, limites e parâmetros inválidos.
 - `tests/auth/auth.spec.js` - testa os endpoints de autenticação.
+- `tests/auth/flows.spec.js` - testa provedores, CSRF, sessões, login, logout e validações de recuperação e redefinição de senha.
 - `tests/register/register.spec.js` - testa o endpoint de cadastro de usuário.
+- `tests/register/validation.spec.js` - valida campos obrigatórios, tipos, limites, criação de conta e e-mail duplicado.
+- `tests/helpers/api.js` - centraliza requisições auxiliares, validações de respostas e preparação de contas e sessões de teste.
+- `tests/planner/planner.spec.js` - testa autenticação, persistência do planejamento, regras de atividades e carregamento e cache de capas.
+- `tests/profile/profile.spec.js` - testa exclusão de conta e rejeição de sessões antigas.
+
+Cada teste cria uma conta exclusiva e a remove pelo `DELETE /api/profile` no
+`afterEach`, mesmo após falhas. A limpeza autentica novamente a conta para cobrir
+os fluxos de logout e valida o retorno 204 sem corpo. A API deve disponibilizar
+esse endpoint; falhas de limpeza são reportadas como falhas do teste.
 
 ## Observações
 
