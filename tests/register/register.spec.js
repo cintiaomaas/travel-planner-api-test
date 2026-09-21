@@ -7,6 +7,7 @@ test.describe('Cadastro', () => {
     const response = await request.post(`${BASE_URL}/api/register`, {
       data: {}
     });
-    expect([400, 422]).toContain(response.status());
+    expect(response.status()).toBe(400);
+    expect((await response.json()).error).toEqual(expect.objectContaining({ code: expect.any(String), message: expect.any(String) }));
   });
 });

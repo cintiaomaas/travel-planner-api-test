@@ -7,6 +7,10 @@
   },
   "servers": [
     {
+      "url": "/",
+      "description": "Servidor atual"
+    },
+    {
       "url": "https://meu-travel-planner.vercel.app",
       "description": "Produção — Vercel"
     },
@@ -21,6 +25,10 @@
       "description": "Especificação OpenAPI utilizada pelo Swagger UI."
     },
     {
+      "name": "Planejamento",
+      "description": "Sincronização dos dados de viagens do usuário autenticado."
+    },
+    {
       "name": "Câmbio",
       "description": "Conversão de valores entre as moedas suportadas."
     },
@@ -30,6 +38,257 @@
     }
   ],
   "paths": {
+    "/api/profile": {
+      "delete": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Excluir a própria conta",
+        "description": "Exclui permanentemente a conta autenticada e seus dados vinculados por cascata, incluindo o planejamento com viagens, atividades e capas enviadas, além de tokens de recuperação de senha. Não recebe corpo, ID ou e-mail: a conta é identificada pelo cookie de sessão do Auth.js. Sessões antigas da conta excluída deixam de ser aceitas. Para limpar testes, execute antes do logout, usando a sessão da conta criada pelo teste. No Swagger, faça login em /login no mesmo servidor e navegador antes de executar. A exclusão não limpa cópias no localStorage nem imagens externas referenciadas por URL.",
+        "operationId": "deleteProfile",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Conta excluída com sucesso. Resposta sem corpo."
+          },
+          "401": {
+            "description": "Sessão ausente, inválida ou de uma conta já excluída (UNAUTHORIZED).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Perfil não encontrado no momento da exclusão (PROFILE_NOT_FOUND).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Não foi possível excluir a conta (PROFILE_DELETE_UNAVAILABLE).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/planner": {
+      "get": {
+        "tags": [
+          "Planejamento"
+        ],
+        "summary": "Carregar o planejamento sincronizado",
+        "description": "Retorna viagens, atividades do roteiro, despesas, checklist, informações e timeline do usuário autenticado. Quando ainda não existem dados sincronizados, `data` e `updatedAt` são nulos. Estados antigos sem atividades retornam `activities: []`.",
+        "operationId": "getPlannerState",
+        "parameters": [
+          {
+            "name": "compact",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Substitui capas embutidas por URLs autenticadas, reduzindo o JSON inicial."
+          }
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Planejamento carregado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlannerStateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Usuário não autenticado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Os dados armazenados não puderam ser carregados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Falha de conexão com o planejamento (PLANNER_SYNC_UNAVAILABLE).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": {
+                    "code": "PLANNER_SYNC_UNAVAILABLE",
+                    "message": "Não foi possível conectar ao planejamento. Tente novamente mais tarde."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Planejamento"
+        ],
+        "summary": "Sincronizar o planejamento",
+        "description": "Substitui o estado sincronizado do usuário autenticado pelo conteúdo completo enviado na requisição. Omitir `activities` equivale a enviar uma lista vazia. Os IDs das atividades devem ser únicos e cada atividade deve referenciar uma viagem enviada. Datas novas ou alteradas devem estar dentro do período da viagem; uma data previamente salva para a mesma atividade e viagem pode ser mantida fora desse período. Despesas vinculadas existentes devem pertencer à mesma viagem. Uma referência a despesa inexistente só pode ser mantida se já estava salva para a mesma atividade e viagem.",
+        "operationId": "updatePlannerState",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlannerState"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Planejamento sincronizado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlannerUpdateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Estado de planejamento inválido (INVALID_PLANNER_STATE), incluindo campos ou combinações inválidas da atividade; ou relacionamentos inválidos de atividades (INVALID_ACTIVITY).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Usuário não autenticado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Serviço de sincronização temporariamente indisponível.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/planner/covers/{key}": {
+      "get": {
+        "tags": [
+          "Planejamento"
+        ],
+        "summary": "Carregar uma capa do usuário autenticado",
+        "operationId": "getPlannerCover",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Imagem com cache privado.",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "A imagem em cache continua atual."
+          },
+          "401": {
+            "description": "Usuário não autenticado."
+          },
+          "404": {
+            "description": "Capa não encontrada para este usuário."
+          }
+        }
+      }
+    },
     "/api/openapi": {
       "get": {
         "tags": [
@@ -598,6 +857,580 @@
       }
     },
     "schemas": {
+      "PlannerStateResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "updatedAt"
+        ],
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PlannerState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedAt": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PlannerUpdateResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": [
+              "updatedAt"
+            ],
+            "properties": {
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "PlannerState": {
+        "type": "object",
+        "required": [
+          "trips",
+          "expenses",
+          "checklist",
+          "selectedTripId",
+          "tripInfo",
+          "timeline"
+        ],
+        "properties": {
+          "activities": {
+            "type": "array",
+            "maxItems": 10000,
+            "default": [],
+            "description": "Atividades do roteiro. Campo opcional; quando omitido, assume uma lista vazia, inclusive ao substituir o planejamento.",
+            "items": {
+              "$ref": "#/components/schemas/Activity"
+            }
+          },
+          "trips": {
+            "type": "array",
+            "maxItems": 250,
+            "items": {
+              "$ref": "#/components/schemas/Trip"
+            }
+          },
+          "expenses": {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "$ref": "#/components/schemas/Expense"
+            }
+          },
+          "checklist": {
+            "type": "array",
+            "maxItems": 2000,
+            "items": {
+              "$ref": "#/components/schemas/ChecklistGroup"
+            }
+          },
+          "selectedTripId": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "tripInfo": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TripInfo"
+            }
+          },
+          "timeline": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "maxItems": 5000,
+              "items": {
+                "$ref": "#/components/schemas/TimelineItem"
+              }
+            }
+          }
+        }
+      },
+      "Activity": {
+        "type": "object",
+        "required": [
+          "id",
+          "tripId",
+          "name",
+          "date",
+          "category",
+          "status"
+        ],
+        "description": "Atividade do roteiro. Quando expenseId é informado, estimate e currency devem ser omitidos: os valores vêm do orçamento. Informar estimate exige currency.",
+        "dependentRequired": {
+          "estimate": [
+            "currency"
+          ]
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "expenseId"
+              ]
+            },
+            "then": {
+              "not": {
+                "anyOf": [
+                  {
+                    "required": [
+                      "estimate"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "currency"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 220
+          },
+          "tripId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 220
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Nome após remoção dos espaços nas extremidades."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-10-15"
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "09:30"
+          },
+          "duration": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 525600,
+            "description": "Duração em minutos."
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "address": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "passeio",
+              "alimentação",
+              "transporte",
+              "hospedagem",
+              "outro"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planejado",
+              "reservado",
+              "concluído"
+            ]
+          },
+          "estimate": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "bookingUrl": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://",
+            "description": "Link de reserva HTTP ou HTTPS."
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "expenseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 220
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "distanceKm": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Distância em quilômetros."
+          },
+          "travelHours": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Tempo de deslocamento em horas, aceitando frações."
+          }
+        }
+      },
+      "Trip": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "destination",
+          "country",
+          "startDate",
+          "endDate",
+          "dateLabel",
+          "travelers",
+          "budget",
+          "currency",
+          "status",
+          "total",
+          "paid",
+          "daysRemaining",
+          "coverImage",
+          "accent"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "destination": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "country": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "dateLabel": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "travelers": {
+            "type": "number",
+            "minimum": 0
+          },
+          "budget": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "const": "BRL"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Planejada",
+              "Em andamento",
+              "Concluída"
+            ]
+          },
+          "total": {
+            "type": "number"
+          },
+          "paid": {
+            "type": "number"
+          },
+          "daysRemaining": {
+            "type": "number"
+          },
+          "coverImage": {
+            "type": "string",
+            "maxLength": 3000000
+          },
+          "coverImageAttribution": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "coverImageLicense": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "coverImageSourceUrl": {
+            "type": "string",
+            "maxLength": 5000
+          },
+          "accent": {
+            "type": "string",
+            "maxLength": 40
+          }
+        }
+      },
+      "Expense": {
+        "type": "object",
+        "required": [
+          "id",
+          "tripId",
+          "category",
+          "description",
+          "quantity",
+          "unitPrice",
+          "currency",
+          "exchangeRate",
+          "convertedAmount",
+          "paid"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "tripId": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Hospedagem",
+              "Passagens",
+              "Transporte",
+              "Alimentação",
+              "Passeios",
+              "Outros"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "exchangeRate": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "convertedAmount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "paid": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 20000
+          }
+        }
+      },
+      "ChecklistGroup": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "icon",
+          "items"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "tripId": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "documents",
+              "reservations",
+              "finance",
+              "luggage"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 500,
+            "items": {
+              "$ref": "#/components/schemas/ChecklistItem"
+            }
+          }
+        }
+      },
+      "ChecklistItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "done"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "done": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TripInfo": {
+        "type": "object",
+        "properties": {
+          "accommodation": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "accommodationDetails": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "flight": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "flightDetails": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "transport": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "documents": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "usefulLink": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 20000
+          }
+        }
+      },
+      "TimelineItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "date",
+          "day",
+          "title",
+          "subtitle",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "sourceExpenseId": {
+            "type": "string",
+            "maxLength": 220
+          },
+          "automatic": {
+            "type": "boolean"
+          },
+          "date": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "dateValue": {
+            "type": "string",
+            "format": "date"
+          },
+          "day": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "time": {
+            "type": "string",
+            "maxLength": 10
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "Financeiro",
+              "Voos",
+              "Hospedagem",
+              "Passeios",
+              "Checklist"
+            ]
+          }
+        }
+      },
       "Currency": {
         "type": "string",
         "enum": [
